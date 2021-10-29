@@ -25,6 +25,7 @@ fn main() {
     //     println!("{}", entry.path().display());
     // }
     let test_path = "/home/sschlinkert";
+    // let test_path = "/media/sschlinkert/My Book/back-ups-rsync-snapshot-feb-2021";
     println!("Making first hash");
     let hash_vec1 = hash_dir(test_path);
     println!("Making second hash");
@@ -52,13 +53,28 @@ fn hash(path: &Path, mut hasher: blake3::Hasher) -> String {
 
 fn hash_dir(dir_path: &str) -> Vec<String> {
     let mut hash_dir = vec![];
+    let hasher = blake3::Hasher::new();
 
     for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
-        if entry.metadata().unwrap().is_file() == true {
+        // println!("{:?}", entry.path());
+        if entry.metadata().unwrap().is_file() == true
+            && entry.path().starts_with("/home/sschlinkert/.bash_history") == false
+            && entry.path().starts_with("/home/sschlinkert/.bash_logout") == false
+            && entry.path().starts_with("/home/sschlinkert/.cargo") == false
+            && entry.path().starts_with("/home/sschlinkert/.cache") == false
+            && entry.path().starts_with("/home/sschlinkert/.config") == false
+            && entry.path().starts_with("/home/sschlinkert/.gtkrc-2.0") == false
+            && entry.path().starts_with("/home/sschlinkert/.gnupg") == false
+            && entry.path().starts_with("/home/sschlinkert/.Xauthority") == false
+            && entry
+                .path()
+                .starts_with("/home/sschlinkert/.xsession-errors")
+                == false
+        {
             // println!("{}", entry.path().display());
-            let hasher = blake3::Hasher::new();
-            let this_file_hash = hash(entry.path(), hasher);
-            hash_dir.push(this_file_hash.to_string());
+            let this_file_hash = hash(entry.path(), hasher.clone());
+            // hash_dir.push(this_file_hash.to_string());
+            hash_dir.push(this_file_hash);
         }
     }
     hash_dir

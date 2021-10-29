@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::{fs, io};
 use walkdir::WalkDir;
 
@@ -16,14 +17,16 @@ fn main() {
 }
 
 fn hash_dir(dir_path: &str) -> blake3::Hash {
+    if !Path::new(dir_path).is_dir() {
+        panic!("Not a directory! Quitting");
+    }
     let mut hasher = blake3::Hasher::new();
 
     for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
         if entry.metadata().unwrap().is_file()
-            && entry
+            && !entry
                 .path()
                 .starts_with("/home/sschlinkert/.steam/steam.pipe")
-                == false
         {
             let mut file = fs::File::open(&entry.path()).expect("Error opening a file for hashing");
             let _n = io::copy(&mut file, &mut hasher).expect("Error hashing a file");
@@ -37,6 +40,11 @@ mod basic_tests {
     use super::*;
 
     #[test]
+    fn can_determine_ccopiedd_directory_is_same() {
+        assert_eq!(hash_dir("./test-files/bar"), hash_dir("./test-files/baz"));
+    }
+
+    #[test]
     fn can_determine_same_directory_is_same() {
         let path = "/home/sschlinkert/code/tic-tac-go";
         assert_eq!(hash_dir(path), hash_dir(path));
@@ -47,5 +55,9 @@ mod basic_tests {
         let path1 = "/home/sschlinkert/code/tic-tac-go";
         let path2 = "/home/sschlinkert/code/tidy";
         assert_ne!(hash_dir(path1), hash_dir(path2));
+        assert_ne!(
+            hash_dir("./test-files/bar"),
+            hash_dir("./test-files/lasagna")
+        );
     }
 }

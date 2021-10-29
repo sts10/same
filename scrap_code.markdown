@@ -1,5 +1,11 @@
 
 ```rust
+    entry
+        .path()
+        .starts_with("/home/sschlinkert/.steam/steam.pipe")
+        == false
+```
+```rust
 fn _hash(path: &Path, mut hasher: blake3::Hasher) -> String {
     let mut file = fs::File::open(&path).expect("Error opening a file for hashing");
     // let mut hasher = Blake2b::new();

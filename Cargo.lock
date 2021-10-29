@@ -190,7 +190,7 @@ dependencies = [
 
 [[package]]
 name = "same"
-version = "0.1.10"
+version = "0.1.12"
 dependencies = [
  "blake3",
  "memmap",

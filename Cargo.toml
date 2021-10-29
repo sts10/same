@@ -1,12 +1,12 @@
 [package]
 name = "same"
-version = "0.1.10"
+version = "0.1.12"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# blake2 = "0.9"
 blake3 = "1.1.0"
 walkdir = "2"
 memmap = "0.7.0"
+structopt = "0.3.25"

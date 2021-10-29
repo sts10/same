@@ -1,24 +1,46 @@
 use std::fs::File;
 use std::path::Path;
+use std::path::PathBuf;
 use std::{fs, io};
+use structopt::StructOpt;
 use walkdir::WalkDir;
 
-fn main() {
-    let test_path = "/home/sschlinkert";
-    println!("Making first hash");
-    let hash1 = hash_dir(test_path);
-    println!("Making second hash");
-    let hash2 = hash_dir("/home/sschlinkert/Documents");
+/// same: Compare directories
+#[derive(StructOpt, Debug)]
+#[structopt(name = "same")]
+struct Opt {
+    /// Directories to hash and compare
+    #[structopt(name = "Inputted Directories", parse(from_os_str))]
+    inputted_directories: Vec<PathBuf>,
+}
 
-    if hash1 == hash2 {
-        println!("Matched!");
+fn main() {
+    let opt = Opt::from_args();
+    let mut hashes = vec![];
+    for directory in &opt.inputted_directories {
+        hashes.push(hash_dir(directory))
+    }
+
+    if hashes.is_empty() {
+        panic!("Didn't find anything hash or compare!")
+    } else if hashes.len() == 1 {
+        println!(
+            "blake3sum for {:?} is\n{}",
+            fs::canonicalize(&opt.inputted_directories[0]).unwrap(),
+            hashes[0]
+        );
     } else {
-        println!("Does not match");
+        if is_all_same(&hashes) {
+            println!("Directories are all the same!");
+        } else {
+            println!("Directories are NOT the same.");
+        }
     }
 }
 
-fn hash_dir(dir_path: &str) -> blake3::Hash {
-    if !Path::new(dir_path).is_dir() {
+// fn hash_dir(dir_path: &PathBuf) -> blake3::Hash {
+fn hash_dir(dir_path: &Path) -> blake3::Hash {
+    if !dir_path.is_dir() {
         panic!("Not a directory! Quitting");
     }
     let mut hasher = blake3::Hasher::new();
@@ -77,29 +99,36 @@ fn maybe_memmap_file(file: &File) -> Option<memmap::Mmap> {
     }
 }
 
+fn is_all_same<T: PartialEq>(arr: &[T]) -> bool {
+    arr.windows(2).all(|w| w[0] == w[1])
+}
+
 #[cfg(test)]
 mod basic_tests {
     use super::*;
 
     #[test]
     fn can_determine_ccopiedd_directory_is_same() {
-        assert_eq!(hash_dir("./test-files/bar"), hash_dir("./test-files/baz"));
+        assert_eq!(
+            hash_dir(&PathBuf::from("./test-files/bar")),
+            hash_dir(&PathBuf::from("./test-files/baz"))
+        );
     }
 
     #[test]
     fn can_determine_same_directory_is_same() {
-        let path = "/home/sschlinkert/code/tic-tac-go";
-        assert_eq!(hash_dir(path), hash_dir(path));
+        let path = PathBuf::from("/home/sschlinkert/code/tic-tac-go");
+        assert_eq!(hash_dir(&path), hash_dir(&path));
     }
 
     #[test]
     fn can_determine_different_directories_are_different() {
-        let path1 = "/home/sschlinkert/code/tic-tac-go";
-        let path2 = "/home/sschlinkert/code/tidy";
-        assert_ne!(hash_dir(path1), hash_dir(path2));
+        let path1 = PathBuf::from("/home/sschlinkert/code/tic-tac-go");
+        let path2 = PathBuf::from("/home/sschlinkert/code/tidy");
+        assert_ne!(hash_dir(&path1), hash_dir(&path2));
         assert_ne!(
-            hash_dir("./test-files/bar"),
-            hash_dir("./test-files/lasagna")
+            hash_dir(&PathBuf::from("./test-files/bar")),
+            hash_dir(&PathBuf::from("./test-files/lasagna"))
         );
     }
 }

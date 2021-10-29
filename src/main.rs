@@ -6,7 +6,7 @@ fn main() {
     // let test_path = "/media/sschlinkert/My Book/back-ups-rsync-snapshot-feb-2021/Documents/macbook-air-code/buzzfeed";
     // let test_path =
     //     "/media/sschlinkert/My Book/back-ups-rsync-snapshot-feb-2021/Documents/macbook-air-code";
-    let test_path = "home/sschlinkert";
+    let test_path = "home/sschlinkert/code";
     println!("path is {}", test_path);
 
     println!("Making first hash");

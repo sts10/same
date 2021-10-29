@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 blake2 = "0.9"
 blake3 = "1.1.0"
+walkdir = "2"

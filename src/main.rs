@@ -24,15 +24,18 @@ fn main() {
     //     println!("{:?}", entry.metadata().unwrap().is_file());
     //     println!("{}", entry.path().display());
     // }
-    let hash_vec1 = hash_dir("/home/sschlinkert/code");
-    let hash_vec2 = hash_dir("/home/sschlinkert/code");
+    let test_path = "/home/sschlinkert";
+    println!("Making first hash");
+    let hash_vec1 = hash_dir(test_path);
+    println!("Making second hash");
+    let hash_vec2 = hash_dir(test_path);
     // let hash_vec2 = hash_dir("baz");
 
-    println!("{:?}\nvs\n{:?}", hash_vec1, hash_vec2);
+    // println!("{:?}\nvs\n{:?}", hash_vec1, hash_vec2);
     if hash_vec1 == hash_vec2 {
         println!("Matched!");
     } else {
-        println!("Do not match");
+        println!("Does not match");
     }
 }
 
@@ -52,7 +55,7 @@ fn hash_dir(dir_path: &str) -> Vec<String> {
 
     for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
         if entry.metadata().unwrap().is_file() == true {
-            println!("{}", entry.path().display());
+            // println!("{}", entry.path().display());
             let hasher = blake3::Hasher::new();
             let this_file_hash = hash(entry.path(), hasher);
             hash_dir.push(this_file_hash.to_string());

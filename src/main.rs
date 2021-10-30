@@ -9,6 +9,10 @@ use walkdir::WalkDir;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "same")]
 struct Opt {
+    /// Compare content of all files in directories
+    #[structopt(short = "c", long = "content")]
+    compare_content: bool,
+
     /// Directories to hash and compare
     #[structopt(name = "Inputted Directories", parse(from_os_str))]
     inputted_directories: Vec<PathBuf>,
@@ -18,7 +22,11 @@ fn main() {
     let opt = Opt::from_args();
     let mut hashes = vec![];
     for directory in &opt.inputted_directories {
-        hashes.push(hash_dir(directory))
+        if opt.compare_content {
+            hashes.push(hash_dir_content(directory))
+        } else {
+            hashes.push(hash_dir_paths(directory))
+        }
     }
 
     if hashes.is_empty() {
@@ -38,8 +46,42 @@ fn main() {
     }
 }
 
-// fn hash_dir(dir_path: &PathBuf) -> blake3::Hash {
-fn hash_dir(dir_path: &Path) -> blake3::Hash {
+fn hash_dir_paths(dir_path: &Path) -> blake3::Hash {
+    if !dir_path.is_dir() {
+        panic!("Not a directory! Quitting");
+    }
+    let mut hasher = blake3::Hasher::new();
+
+    for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
+        if entry.metadata().unwrap().is_file()
+            && !entry
+                .path()
+                .starts_with("/home/sschlinkert/.steam/steam.pipe")
+        {
+            // println!("Metadata: {:?}", entry.metadata().unwrap());
+            // println!("Path: {:?}", entry.path());
+            // for component in entry.path() {
+            //     println!("{:?}", component)
+            // }
+            println!("Path: {:?}", entry.path().components().into_iter()[0..1]);
+            hasher.update(entry.path().to_str().unwrap().as_bytes());
+        }
+    }
+    hasher.finalize()
+}
+
+fn get_path_relative_to_dir(dir_path: Path, full_path: Path) -> Path {
+    let length_of_dir_path = 0;
+    for component in dir_path {
+        length_of_dir_path += 1;
+    }
+    let rel_path = Path::new();
+    for component in full_path {
+        println!("{:?}", component)
+    }
+}
+
+fn hash_dir_content(dir_path: &Path) -> blake3::Hash {
     if !dir_path.is_dir() {
         panic!("Not a directory! Quitting");
     }
@@ -108,27 +150,35 @@ mod basic_tests {
     use super::*;
 
     #[test]
-    fn can_determine_ccopiedd_directory_is_same() {
+    fn can_determine_ccopied_directory_is_same() {
         assert_eq!(
-            hash_dir(&PathBuf::from("./test-files/bar")),
-            hash_dir(&PathBuf::from("./test-files/baz"))
+            hash_dir_content(&PathBuf::from("./test-files/bar")),
+            hash_dir_content(&PathBuf::from("./test-files/baz"))
+        );
+    }
+
+    #[test]
+    fn can_determine_copied_directory_is_same_from_paths() {
+        assert_eq!(
+            hash_dir_paths(&PathBuf::from("./test-files/bar")),
+            hash_dir_paths(&PathBuf::from("./test-files/bar"))
         );
     }
 
     #[test]
     fn can_determine_same_directory_is_same() {
         let path = PathBuf::from("/home/sschlinkert/code/tic-tac-go");
-        assert_eq!(hash_dir(&path), hash_dir(&path));
+        assert_eq!(hash_dir_content(&path), hash_dir_content(&path));
     }
 
     #[test]
     fn can_determine_different_directories_are_different() {
         let path1 = PathBuf::from("/home/sschlinkert/code/tic-tac-go");
         let path2 = PathBuf::from("/home/sschlinkert/code/tidy");
-        assert_ne!(hash_dir(&path1), hash_dir(&path2));
+        assert_ne!(hash_dir_content(&path1), hash_dir_content(&path2));
         assert_ne!(
-            hash_dir(&PathBuf::from("./test-files/bar")),
-            hash_dir(&PathBuf::from("./test-files/lasagna"))
+            hash_dir_content(&PathBuf::from("./test-files/bar")),
+            hash_dir_content(&PathBuf::from("./test-files/lasagna"))
         );
     }
 }

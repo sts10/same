@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::{fs, io};
@@ -9,9 +10,9 @@ use walkdir::WalkDir;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "same")]
 struct Opt {
-    /// Compare content of all files in directories
-    #[structopt(short = "c", long = "content")]
-    compare_content: bool,
+    /// How thorough to be when comparing directories
+    #[structopt(short = "t", long = "thoroughness")]
+    thoroughness: usize,
 
     /// Directories to hash and compare
     #[structopt(name = "Inputted Directories", parse(from_os_str))]
@@ -22,11 +23,7 @@ fn main() {
     let opt = Opt::from_args();
     let mut hashes = vec![];
     for directory in &opt.inputted_directories {
-        if opt.compare_content {
-            hashes.push(hash_dir_content(directory))
-        } else {
-            hashes.push(hash_dir_paths(directory))
-        }
+        hashes.push(hash_dir(directory, opt.thoroughness))
     }
 
     if hashes.is_empty() {
@@ -46,53 +43,44 @@ fn main() {
     }
 }
 
-fn hash_dir_paths(dir_path: &Path) -> blake3::Hash {
+// fn get_path_relative_to_dir(dir_path: Path, full_path: Path) -> Path {
+//     let length_of_dir_path = 0;
+//     for component in dir_path {
+//         length_of_dir_path += 1;
+//     }
+//     let rel_path = Path::new();
+//     for component in full_path {
+//         println!("{:?}", component)
+//     }
+// }
+
+fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
     if !dir_path.is_dir() {
         panic!("Not a directory! Quitting");
     }
+    println!("New directory: {:?}", dir_path);
     let mut hasher = blake3::Hasher::new();
 
+    // We have to sort entries because WalkDir doesn't walk the same way
+    // each run
+    let mut sorted_entries = vec![];
     for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
-        if entry.metadata().unwrap().is_file()
-            && !entry
-                .path()
-                .starts_with("/home/sschlinkert/.steam/steam.pipe")
-        {
-            // println!("Metadata: {:?}", entry.metadata().unwrap());
-            // println!("Path: {:?}", entry.path());
-            // for component in entry.path() {
-            //     println!("{:?}", component)
-            // }
-            println!("Path: {:?}", entry.path().components().into_iter()[0..1]);
-            hasher.update(entry.path().to_str().unwrap().as_bytes());
+        sorted_entries.push(entry)
+    }
+    sorted_entries.sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+    for entry in sorted_entries {
+        if thoroughness >= 1 {
+            let file_name = entry.path().file_name().unwrap();
+            // hasher.update(entry.path().to_str().unwrap().as_bytes());
+            if file_name != ".DS_Store" && file_name != "._.DS_Store" && file_name != "steam.pipe" {
+                println!("File name is {:?}", file_name);
+                hasher.update(file_name.as_bytes());
+            }
         }
-    }
-    hasher.finalize()
-}
-
-fn get_path_relative_to_dir(dir_path: Path, full_path: Path) -> Path {
-    let length_of_dir_path = 0;
-    for component in dir_path {
-        length_of_dir_path += 1;
-    }
-    let rel_path = Path::new();
-    for component in full_path {
-        println!("{:?}", component)
-    }
-}
-
-fn hash_dir_content(dir_path: &Path) -> blake3::Hash {
-    if !dir_path.is_dir() {
-        panic!("Not a directory! Quitting");
-    }
-    let mut hasher = blake3::Hasher::new();
-
-    for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
-        if entry.metadata().unwrap().is_file()
-            && !entry
-                .path()
-                .starts_with("/home/sschlinkert/.steam/steam.pipe")
-        {
+        if thoroughness == 4 {
+            if !entry.metadata().unwrap().is_file() {
+                continue;
+            }
             let mut file = fs::File::open(&entry.path()).expect("Error opening a file for hashing");
             if let Some(mmap) = maybe_memmap_file(&file) {
                 // println!("mmapping {}, baby!", entry.path().display());
@@ -182,3 +170,27 @@ mod basic_tests {
         );
     }
 }
+
+// fn hash_dir_paths(dir_path: &Path) -> blake3::Hash {
+//     if !dir_path.is_dir() {
+//         panic!("Not a directory! Quitting");
+//     }
+//     let mut hasher = blake3::Hasher::new();
+
+//     for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
+//         if entry.metadata().unwrap().is_file()
+//             && !entry
+//                 .path()
+//                 .starts_with("/home/sschlinkert/.steam/steam.pipe")
+//         {
+//             // println!("Metadata: {:?}", entry.metadata().unwrap());
+//             // println!("Path: {:?}", entry.path());
+//             // for component in entry.path() {
+//             //     println!("{:?}", component)
+//             // }
+//             println!("Path: {:?}", entry.path().components().into_iter()[0..1]);
+//             hasher.update(entry.path().to_str().unwrap().as_bytes());
+//         }
+//     }
+//     hasher.finalize()
+// }

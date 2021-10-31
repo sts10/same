@@ -10,11 +10,12 @@ use walkdir::WalkDir;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "same")]
 struct Opt {
-    /// How thorough to be when comparing directories
+    /// How thorough to be when comparing directories. 1 checks file names; 2 checks paths relative
+    /// to inputted directory; 4 checks the actual files
     #[structopt(short = "t", long = "thoroughness")]
     thoroughness: usize,
 
-    /// Directories to hash and compare
+    /// Directories to compare for sameness
     #[structopt(name = "Inputted Directories", parse(from_os_str))]
     inputted_directories: Vec<PathBuf>,
 }

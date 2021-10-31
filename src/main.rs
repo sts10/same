@@ -66,6 +66,8 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
         sorted_entries.push(entry)
     }
     sorted_entries.sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+    println!("Have sorted {:?}", dir_path);
+
     for entry in sorted_entries {
         if thoroughness == 1 {
             let file_name = entry.path().file_name().unwrap();
@@ -81,9 +83,13 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
             }
             let mut file = fs::File::open(&entry.path()).expect("Error opening a file for hashing");
             if let Some(mmap) = maybe_memmap_file(&file) {
-                let _n = io::copy(&mut io::Cursor::new(mmap), &mut hasher)
-                    .expect("Error hashing a file");
+                // let _n = io::copy(&mut io::Cursor::new(mmap), &mut hasher)
+                //     .expect("Error hashing a file");
+                let cursor = &mut io::Cursor::new(mmap);
+                hasher.update_rayon(cursor.get_ref());
             } else {
+                // Not sure how to do the following with rayon/in parallel
+                // See: https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L224-L235
                 let _n = io::copy(&mut file, &mut hasher).expect("Error hashing a file");
             }
         }

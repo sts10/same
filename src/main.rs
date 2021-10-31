@@ -69,11 +69,11 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
     for entry in sorted_entries {
         if thoroughness == 1 {
             let file_name = entry.path().file_name().unwrap();
-            hasher.update(file_name.as_bytes());
+            hasher.update_rayon(file_name.as_bytes());
         }
         if thoroughness >= 2 {
             let rel_path = get_path_relative_to_dir(dir_path, entry.path());
-            hasher.update(rel_path.as_os_str().as_bytes());
+            hasher.update_rayon(rel_path.as_os_str().as_bytes());
         }
         if thoroughness == 4 {
             if !entry.metadata().unwrap().is_file() {

@@ -43,16 +43,14 @@ fn main() {
     }
 }
 
-// fn get_path_relative_to_dir(dir_path: Path, full_path: Path) -> Path {
-//     let length_of_dir_path = 0;
-//     for component in dir_path {
-//         length_of_dir_path += 1;
-//     }
-//     let rel_path = Path::new();
-//     for component in full_path {
-//         println!("{:?}", component)
-//     }
-// }
+fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a Path {
+    let length_of_dir_path = dir_path.components().count();
+    let mut rel_path_components = full_path.components();
+    for _n in 0..length_of_dir_path {
+        rel_path_components.next();
+    }
+    rel_path_components.as_path()
+}
 
 fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
     if !dir_path.is_dir() {
@@ -69,13 +67,13 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
     }
     sorted_entries.sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
     for entry in sorted_entries {
-        if thoroughness >= 1 {
+        if thoroughness == 1 {
             let file_name = entry.path().file_name().unwrap();
-            // hasher.update(entry.path().to_str().unwrap().as_bytes());
-            if file_name != ".DS_Store" && file_name != "._.DS_Store" && file_name != "steam.pipe" {
-                println!("File name is {:?}", file_name);
-                hasher.update(file_name.as_bytes());
-            }
+            hasher.update(file_name.as_bytes());
+        }
+        if thoroughness >= 2 {
+            let rel_path = get_path_relative_to_dir(dir_path, entry.path());
+            hasher.update(rel_path.as_os_str().as_bytes());
         }
         if thoroughness == 4 {
             if !entry.metadata().unwrap().is_file() {
@@ -83,7 +81,6 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
             }
             let mut file = fs::File::open(&entry.path()).expect("Error opening a file for hashing");
             if let Some(mmap) = maybe_memmap_file(&file) {
-                // println!("mmapping {}, baby!", entry.path().display());
                 let _n = io::copy(&mut io::Cursor::new(mmap), &mut hasher)
                     .expect("Error hashing a file");
             } else {

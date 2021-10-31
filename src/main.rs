@@ -133,18 +133,6 @@ fn is_all_same<T: PartialEq>(arr: &[T]) -> bool {
     arr.windows(2).all(|w| w[0] == w[1])
 }
 
-fn _sort_dir_par(dir_path: &Path) -> Vec<walkdir::DirEntry> {
-    // We have to sort entries because WalkDir doesn't walk the same way
-    // each run
-    let mut sorted_entries = vec![];
-    for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
-        sorted_entries.push(entry)
-    }
-    use rayon::slice::ParallelSliceMut;
-    sorted_entries.par_sort_unstable_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
-    sorted_entries
-}
-
 #[cfg(test)]
 mod basic_tests {
     use super::*;
@@ -175,5 +163,25 @@ mod basic_tests {
         let test_path1 = Path::new("./test-files/bar");
         let test_path2 = Path::new("./test-files/back-ups/bar");
         assert_eq!(hash_dir(&test_path1, 4), hash_dir(&test_path2, 4),);
+    }
+
+    #[test]
+    fn can_get_relative_path() {
+        let dir_path = Path::new("home/username/Pictures");
+        let this_sub_folder = Path::new("home/username/Pictures/holidays/maine");
+        assert_eq!(
+            get_path_relative_to_dir(&dir_path, &this_sub_folder),
+            Path::new("holidays/maine"),
+        );
+    }
+
+    #[test]
+    fn can_get_relative_path_with_filename() {
+        let dir_path = Path::new("home/username/Pictures");
+        let absolute_path = Path::new("home/username/Pictures/holidays/maine/sunset.jpg");
+        assert_eq!(
+            get_path_relative_to_dir(&dir_path, &absolute_path),
+            Path::new("holidays/maine/sunset.jpg"),
+        );
     }
 }

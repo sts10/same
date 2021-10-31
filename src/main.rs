@@ -61,14 +61,22 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
 
     // We have to sort entries because WalkDir doesn't walk the same way
     // each run
-    let mut sorted_entries = vec![];
-    for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
-        sorted_entries.push(entry)
-    }
-    sorted_entries.sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
-    println!("Have sorted {:?}", dir_path);
+    // let mut sorted_entries = vec![];
+    // for entry in WalkDir::new(dir_path)
+    //     .sort_by_file_name()
+    //     .into_iter()
+    //     .filter_map(|e| e.ok())
+    // {
+    //     sorted_entries.push(entry)
+    // }
+    // // sorted_entries.sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+    // println!("Have sorted {:?}", dir_path);
 
-    for entry in sorted_entries {
+    for entry in WalkDir::new(dir_path)
+        .sort_by_file_name() // hopefully this makes WalkDir's output deterministic
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         if thoroughness == 1 {
             let file_name = entry.path().file_name().unwrap();
             hasher.update_rayon(file_name.as_bytes());

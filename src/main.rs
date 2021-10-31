@@ -1,7 +1,12 @@
+extern crate chrono;
+
+use chrono::offset::Utc;
+use chrono::DateTime;
 use std::fs::File;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::path::PathBuf;
+// use std::time::SystemTime;
 use std::{fs, io};
 use structopt::StructOpt;
 use walkdir::WalkDir;
@@ -73,6 +78,23 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
         if thoroughness >= 2 {
             let rel_path = get_path_relative_to_dir(dir_path, entry.path());
             hasher.update_rayon(rel_path.as_os_str().as_bytes());
+        }
+        if thoroughness >= 3 {
+            let time_modified = entry
+                .metadata()
+                .expect("Unable to access file metadata")
+                .modified()
+                .unwrap();
+            let rel_path = get_path_relative_to_dir(dir_path, entry.path());
+            println!(
+                "time modified is {:?}; and rel path is {:?}",
+                time_modified, rel_path
+            );
+            println!("TM is {:?}", time_modified);
+            let modified_time_as_date_time: DateTime<Utc> = time_modified.into();
+            // let modified_time_as_date_time: DateTime<Utc> = time_modified.into();
+            // hasher.update_rayon(modified_time_as_date_time.to_rfc3339().as_bytes());
+            // hasher.update_rayon(time_modified.as_bytes());
         }
         if thoroughness == 4 {
             if !entry.metadata().unwrap().is_file() {
@@ -173,7 +195,8 @@ mod basic_tests {
     fn can_determine_copied_directory_is_same_from_paths_even_have_have_different_paths_and_path_lengths(
     ) {
         let test_path1 = Path::new("./test-files/bar");
-        let test_path2 = Path::new("./test-files/back-ups/bar");
+        // let test_path2 = Path::new("./test-files/back-ups/bar");
+        let test_path2 = Path::new("./test-files/back_ups2/bar");
         assert_eq!(hash_dir(&test_path1, 4), hash_dir(&test_path2, 4),);
     }
 }

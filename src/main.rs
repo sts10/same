@@ -59,21 +59,9 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
     println!("New directory: {:?}", dir_path);
     let mut hasher = blake3::Hasher::new();
 
-    // We have to sort entries because WalkDir doesn't walk the same way
-    // each run
-    // let mut sorted_entries = vec![];
-    // for entry in WalkDir::new(dir_path)
-    //     .sort_by_file_name()
-    //     .into_iter()
-    //     .filter_map(|e| e.ok())
-    // {
-    //     sorted_entries.push(entry)
-    // }
-    // // sorted_entries.sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
-    // println!("Have sorted {:?}", dir_path);
-
+    // for entry in sort_dir_par(dir_path) {
     for entry in WalkDir::new(dir_path)
-        .sort_by_file_name() // hopefully this makes WalkDir's output deterministic
+        .sort_by_file_name()
         .into_iter()
         .filter_map(|e| e.ok())
     {
@@ -144,64 +132,47 @@ fn is_all_same<T: PartialEq>(arr: &[T]) -> bool {
     arr.windows(2).all(|w| w[0] == w[1])
 }
 
+fn _sort_dir_par(dir_path: &Path) -> Vec<walkdir::DirEntry> {
+    // We have to sort entries because WalkDir doesn't walk the same way
+    // each run
+    let mut sorted_entries = vec![];
+    for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
+        sorted_entries.push(entry)
+    }
+    use rayon::slice::ParallelSliceMut;
+    sorted_entries.par_sort_unstable_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+    sorted_entries
+}
+
 #[cfg(test)]
 mod basic_tests {
     use super::*;
 
     #[test]
-    fn can_determine_ccopied_directory_is_same() {
-        assert_eq!(
-            hash_dir_content(&PathBuf::from("./test-files/bar")),
-            hash_dir_content(&PathBuf::from("./test-files/baz"))
-        );
-    }
-
-    #[test]
     fn can_determine_copied_directory_is_same_from_paths() {
-        assert_eq!(
-            hash_dir_paths(&PathBuf::from("./test-files/bar")),
-            hash_dir_paths(&PathBuf::from("./test-files/bar"))
-        );
-    }
-
-    #[test]
-    fn can_determine_same_directory_is_same() {
-        let path = PathBuf::from("/home/sschlinkert/code/tic-tac-go");
-        assert_eq!(hash_dir_content(&path), hash_dir_content(&path));
+        let test_path = Path::new("./test-files/bar");
+        assert_eq!(hash_dir(&test_path, 4), hash_dir(&test_path, 4),);
     }
 
     #[test]
     fn can_determine_different_directories_are_different() {
-        let path1 = PathBuf::from("/home/sschlinkert/code/tic-tac-go");
-        let path2 = PathBuf::from("/home/sschlinkert/code/tidy");
-        assert_ne!(hash_dir_content(&path1), hash_dir_content(&path2));
-        assert_ne!(
-            hash_dir_content(&PathBuf::from("./test-files/bar")),
-            hash_dir_content(&PathBuf::from("./test-files/lasagna"))
-        );
+        let path1 = Path::new("/home/sschlinkert/code/tic-tac-go");
+        let path2 = Path::new("/home/sschlinkert/code/tidy");
+        assert_ne!(hash_dir(&path1, 4), hash_dir(&path2, 4));
+    }
+
+    #[test]
+    fn can_determine_copied_directory_is_same_from_paths_even_have_have_different_dir_name() {
+        let test_path1 = Path::new("./test-files/bar");
+        let test_path2 = Path::new("./test-files/baz");
+        assert_eq!(hash_dir(&test_path1, 2), hash_dir(&test_path2, 2),);
+    }
+
+    #[test]
+    fn can_determine_copied_directory_is_same_from_paths_even_have_have_different_paths_and_path_lengths(
+    ) {
+        let test_path1 = Path::new("./test-files/bar");
+        let test_path2 = Path::new("./test-files/back-ups/bar");
+        assert_eq!(hash_dir(&test_path1, 4), hash_dir(&test_path2, 4),);
     }
 }
-
-// fn hash_dir_paths(dir_path: &Path) -> blake3::Hash {
-//     if !dir_path.is_dir() {
-//         panic!("Not a directory! Quitting");
-//     }
-//     let mut hasher = blake3::Hasher::new();
-
-//     for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
-//         if entry.metadata().unwrap().is_file()
-//             && !entry
-//                 .path()
-//                 .starts_with("/home/sschlinkert/.steam/steam.pipe")
-//         {
-//             // println!("Metadata: {:?}", entry.metadata().unwrap());
-//             // println!("Path: {:?}", entry.path());
-//             // for component in entry.path() {
-//             //     println!("{:?}", component)
-//             // }
-//             println!("Path: {:?}", entry.path().components().into_iter()[0..1]);
-//             hasher.update(entry.path().to_str().unwrap().as_bytes());
-//         }
-//     }
-//     hasher.finalize()
-// }

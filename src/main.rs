@@ -1,11 +1,11 @@
 extern crate chrono;
-
 use chrono::offset::Utc;
 use chrono::DateTime;
 use std::fs::File;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::SystemTime;
 // use std::time::SystemTime;
 use std::{fs, io};
 use structopt::StructOpt;
@@ -26,10 +26,11 @@ struct Opt {
 }
 
 fn main() {
+    let current_sys_time = SystemTime::now();
     let opt = Opt::from_args();
     let mut hashes = vec![];
     for directory in &opt.inputted_directories {
-        hashes.push(hash_dir(directory, opt.thoroughness))
+        hashes.push(hash_dir(directory, opt.thoroughness, current_sys_time))
     }
 
     if hashes.is_empty() {
@@ -58,7 +59,7 @@ fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a Pat
     rel_path_components.as_path()
 }
 
-fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
+fn hash_dir(dir_path: &Path, thoroughness: usize, current_sys_time: SystemTime) -> blake3::Hash {
     if !dir_path.is_dir() {
         panic!("Not a directory! Quitting");
     }
@@ -86,15 +87,19 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
                 .modified()
                 .unwrap();
             let rel_path = get_path_relative_to_dir(dir_path, entry.path());
-            println!(
-                "time modified is {:?}; and rel path is {:?}",
-                time_modified, rel_path
-            );
-            println!("TM is {:?}", time_modified);
-            let modified_time_as_date_time: DateTime<Utc> = time_modified.into();
+            // println!(
+            //     "time modified is {:?}; and rel path is {:?}",
+            //     time_modified, rel_path
+            // );
+            // let basic_hash_of_time_modified = hash_system_time(time_modified);
+            let last_modified = get_system_time_difference(time_modified, current_sys_time);
+            dbg!(last_modified);
+
+            hasher.update_rayon(&last_modified.as_nanos().to_ne_bytes());
             // let modified_time_as_date_time: DateTime<Utc> = time_modified.into();
             // hasher.update_rayon(modified_time_as_date_time.to_rfc3339().as_bytes());
-            // hasher.update_rayon(time_modified.as_bytes());
+            // hasher.update_rayon(basic_hash_of_time_modified.into());
+            // hasher.update_rayon(basic_hash_of_time_modified.as_bytes());
         }
         if thoroughness == 4 {
             if !entry.metadata().unwrap().is_file() {
@@ -165,6 +170,17 @@ fn _sort_dir_par(dir_path: &Path) -> Vec<walkdir::DirEntry> {
     use rayon::slice::ParallelSliceMut;
     sorted_entries.par_sort_unstable_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
     sorted_entries
+}
+
+fn get_system_time_difference(
+    sys_time: SystemTime,
+    current_sys_time: SystemTime,
+) -> std::time::Duration {
+    let difference = current_sys_time
+        .duration_since(sys_time)
+        .expect("SystemTime::duration_since failed");
+    println!("Difference is {:?}", difference);
+    difference
 }
 
 #[cfg(test)]

@@ -9,7 +9,7 @@ This is a toy for now, **so don't actually use this!**
 ## Installation
 
 1. [Install Rust](https://www.rust-lang.org/tools/install) if you haven't already
-2. Run: `cargo install --git https://github.com/sts10/tidy --branch main`
+2. Run: `cargo install --git https://github.com/sts10/same --branch main`
 
 ## Usage
 

@@ -47,14 +47,6 @@ fn main() {
 fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a Path {
     full_path.strip_prefix(dir_path).unwrap()
 }
-// fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a Path {
-//     let length_of_dir_path = dir_path.components().count();
-//     let mut rel_path_components = full_path.components();
-//     for _n in 0..length_of_dir_path {
-//         rel_path_components.next();
-//     }
-//     rel_path_components.as_path()
-// }
 
 fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
     if !dir_path.is_dir() {

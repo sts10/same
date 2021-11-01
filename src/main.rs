@@ -81,6 +81,7 @@ fn hash_dir(dir_path: &Path, thoroughness: usize, current_sys_time: SystemTime) 
             hasher.update_rayon(rel_path.as_os_str().as_bytes());
         }
         if thoroughness >= 3 {
+            // dbg!(entry.metadata().unwrap());
             let time_modified = entry
                 .metadata()
                 .expect("Unable to access file metadata")

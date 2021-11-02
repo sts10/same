@@ -1,3 +1,5 @@
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
 use std::fs::File;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
@@ -53,48 +55,60 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
         panic!("Not a directory! Quitting");
     }
     println!("New directory: {:?}", dir_path);
-    let mut hasher = blake3::Hasher::new();
+    // We have to sort entries because WalkDir doesn't walk the same way
+    // each run
 
-    // for entry in sort_dir_par(dir_path) {
-    for entry in WalkDir::new(dir_path)
-        .sort_by_file_name()
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        if thoroughness == 1 {
-            // Compare file names by adding them to the hash
-            let file_name = entry.path().file_name().unwrap();
-            hasher.update_rayon(file_name.as_bytes());
-        }
-        if thoroughness >= 2 {
-            // Compare realtive file paths, including file names, by adding them to the hash
-            let rel_path = get_path_relative_to_dir(dir_path, entry.path());
-            hasher.update_rayon(rel_path.as_os_str().as_bytes());
-        }
-        if thoroughness >= 3 {
-            // Compare by file size
-            let file_size = entry.metadata().expect("Error reading a file's size").len();
-            hasher.update_rayon(&file_size.to_ne_bytes());
-        }
-        if thoroughness == 4 {
-            // Hash all file contents
-            if !entry.metadata().unwrap().is_file() {
-                continue;
-            }
-            let mut file = fs::File::open(&entry.path()).expect("Error opening a file for hashing");
-            if let Some(mmap) = maybe_memmap_file(&file) {
-                // let _n = io::copy(&mut io::Cursor::new(mmap), &mut hasher)
-                //     .expect("Error hashing a file");
-                let cursor = &mut io::Cursor::new(mmap);
-                hasher.update_rayon(cursor.get_ref());
-            } else {
-                // Not sure how to do the following with rayon/in parallel
-                // See: https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L224-L235
-                let _n = io::copy(&mut file, &mut hasher).expect("Error hashing a file");
-            }
+    let mut sorted_entries: Vec<walkdir::DirEntry> = vec![];
+    for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
+        if entry.metadata().unwrap().is_file() {
+            sorted_entries.push(entry)
         }
     }
-    hasher.finalize()
+    sorted_entries.sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+
+    let sorted_paths: Vec<&Path> = sorted_entries.iter().map(|entry| entry.path()).collect();
+    // for entry in sort_dir_par(dir_path) {
+    let hashes: Vec<blake3::Hash> = sorted_paths
+        .par_iter() // maybe the other one
+        .filter_map(|path| {
+            let mut hasher = blake3::Hasher::new();
+            if thoroughness == 1 {
+                // Compare file names by adding them to the hash
+                let file_name = path.file_name().unwrap();
+                hasher.update(file_name.as_bytes());
+            }
+            if thoroughness >= 2 {
+                // Compare realtive file paths, including file names, by adding them to the hash
+                let rel_path = get_path_relative_to_dir(dir_path, path);
+                hasher.update(rel_path.as_os_str().as_bytes());
+            }
+            // if thoroughness >= 3 {
+            //     // Compare by file size
+            //     let file_size = entry.metadata().expect("Error reading a file's size").len();
+            //     hasher.update(&file_size.to_ne_bytes());
+            // }
+            if thoroughness == 4 {
+                // Hash all file contents
+                let mut file = fs::File::open(&path).expect("Error opening a file for hashing");
+                if let Some(mmap) = maybe_memmap_file(&file) {
+                    // let _n = io::copy(&mut io::Cursor::new(mmap), &mut hasher)
+                    //     .expect("Error hashing a file");
+                    let cursor = &mut io::Cursor::new(mmap);
+                    hasher.update(cursor.get_ref());
+                } else {
+                    // Not sure how to do the following with rayon/in parallel
+                    // See: https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L224-L235
+                    let _n = io::copy(&mut file, &mut hasher).expect("Error hashing a file");
+                }
+            }
+            Some(hasher.finalize())
+        })
+        .collect();
+    let mut all_hasher = blake3::Hasher::new();
+    for hash in hashes {
+        all_hasher.update(hash.as_bytes());
+    }
+    all_hasher.finalize()
 }
 
 // https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L276-L306

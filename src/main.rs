@@ -1,6 +1,9 @@
 use rayon::iter::IntoParallelRefIterator;
+
 use rayon::iter::ParallelIterator;
 use std::fs::File;
+use std::hash::Hasher;
+use std::io::Read;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::path::PathBuf;
@@ -50,7 +53,7 @@ fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a Pat
     full_path.strip_prefix(dir_path).unwrap()
 }
 
-fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
+fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
     if !dir_path.is_dir() {
         panic!("Not a directory! Quitting");
     }
@@ -68,47 +71,54 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
 
     let sorted_paths: Vec<&Path> = sorted_entries.iter().map(|entry| entry.path()).collect();
     // for entry in sort_dir_par(dir_path) {
-    let hashes: Vec<blake3::Hash> = sorted_paths
+    let hashes: Vec<u64> = sorted_paths
         .par_iter() // maybe the other one
         .filter_map(|path| {
-            let mut hasher = blake3::Hasher::new();
+            let mut hasher = seahash::SeaHasher::new();
             if thoroughness == 1 {
                 // Compare file names by adding them to the hash
                 let file_name = path.file_name().unwrap();
-                hasher.update(file_name.as_bytes());
+                hasher.write(file_name.as_bytes());
             }
             if thoroughness >= 2 {
                 // Compare realtive file paths, including file names, by adding them to the hash
                 let rel_path = get_path_relative_to_dir(dir_path, path);
-                hasher.update(rel_path.as_os_str().as_bytes());
+                hasher.write(rel_path.as_os_str().as_bytes());
             }
             // if thoroughness >= 3 {
             //     // Compare by file size
             //     let file_size = entry.metadata().expect("Error reading a file's size").len();
-            //     hasher.update(&file_size.to_ne_bytes());
+            //     hasher.write(&file_size.to_ne_bytes());
             // }
             if thoroughness == 4 {
                 // Hash all file contents
-                let mut file = fs::File::open(&path).expect("Error opening a file for hashing");
+                let file = fs::File::open(&path).expect("Error opening a file for hashing");
                 if let Some(mmap) = maybe_memmap_file(&file) {
                     // let _n = io::copy(&mut io::Cursor::new(mmap), &mut hasher)
                     //     .expect("Error hashing a file");
                     let cursor = &mut io::Cursor::new(mmap);
-                    hasher.update(cursor.get_ref());
+                    hasher.write(cursor.get_ref());
                 } else {
                     // Not sure how to do the following with rayon/in parallel
                     // See: https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L224-L235
-                    let _n = io::copy(&mut file, &mut hasher).expect("Error hashing a file");
+                    // let _n = io::copy(&mut file, &mut hasher).expect("Error hashing a file");
+                    // let bytes = file.bytes().map(|byte| byte.unwrap()).collect();
+                    let mut bytes = vec![];
+                    for byte in file.bytes() {
+                        bytes.push(byte.unwrap());
+                    }
+                    hasher.write(&bytes);
                 }
             }
-            Some(hasher.finalize())
+            Some(hasher.finish())
         })
         .collect();
-    let mut all_hasher = blake3::Hasher::new();
+
+    let mut all_hasher = seahash::SeaHasher::new();
     for hash in hashes {
-        all_hasher.update(hash.as_bytes());
+        all_hasher.write_u64(hash);
     }
-    all_hasher.finalize()
+    all_hasher.finish()
 }
 
 // https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L276-L306

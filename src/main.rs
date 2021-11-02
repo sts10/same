@@ -1,7 +1,11 @@
-// use rayon::iter::IntoParallelRefIterator;
+// use crossbeam_channel::{bounded, select};
+// use crossbeam_utils::thread;
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
+use rayon::prelude::ParallelSliceMut;
 
-// use rayon::iter::ParallelIterator;
-// use rayon::prelude::ParallelSliceMut;
+use crossbeam_channel::unbounded;
+use ignore::DirEntry;
 use std::fs::File;
 use std::hash::Hasher;
 use std::io::BufRead;
@@ -15,7 +19,7 @@ use structopt::StructOpt;
 // use ignore::DirEntry;
 use ignore::WalkBuilder;
 // use ignore::WalkParallel;
-use ignore::WalkState;
+// use ignore::WalkState;
 
 /// same: Compare directories
 #[derive(StructOpt, Debug)]
@@ -63,69 +67,90 @@ fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a Pat
 //     vector.push(entry);
 // }
 
-fn hash_dir(dir_path: &Path, thoroughness: usize) {
-    //  -> u64 {
+fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
     if !dir_path.is_dir() {
         panic!("Not a directory! Quitting");
     }
-    println!("New directory: {:?}", dir_path);
-    // We have to sort entries because WalkDir doesn't walk the same way
-    // each run
+    println!("Checking directory: {:?}", dir_path);
 
-    // let mut sorted_entries: Vec<DirEntry> = vec![];
-    let mut hasher = ahash::AHasher::default();
-    let mut builder = WalkBuilder::new(dir_path);
-    let hashes = builder
-        .sort_by_file_path(|a, b| a.partial_cmp(b).unwrap())
-        .build_parallel()
-        .run(|| {
-            Box::new(|entry| {
-                println!("'path' is {:?}", entry);
-                let path = entry.as_ref().unwrap().path();
-                if thoroughness == 1 {
-                    // Compare file names by adding them to the hash
-                    let file_name = entry.unwrap().file_name();
-                    hasher.write(file_name.as_bytes());
-                }
-                if thoroughness >= 2 {
-                    // Compare relative file paths, including file names, by adding them to the hash
-                    let rel_path = get_path_relative_to_dir(dir_path, path);
-                    hasher.write(rel_path.as_os_str().as_bytes());
-                }
-                // if thoroughness >= 3 {
-                //     // Compare by file size
-                //     let file_size = entry.metadata().expect("Error reading a file's size").len();
-                //     hasher.write(&file_size.to_ne_bytes());
-                // }
-                if thoroughness == 4 {
-                    // Hash all file contents
-                    let file = fs::File::open(path).expect("Error opening a file for hashing");
-                    if let Some(mmap) = maybe_memmap_file(&file) {
-                        // let _n = io::copy(&mut io::Cursor::new(mmap), &mut hasher)
-                        //     .expect("Error hashing a file");
-                        let cursor = &mut io::Cursor::new(mmap);
-                        hasher.write(cursor.get_ref());
-                    } else {
-                        // Not sure how to do the following with rayon/in parallel
-                        // See: https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L224-L235
-                        // let _n = io::copy(&mut file, &mut hasher).expect("Error hashing a file");
-                        hash_file(path, &mut hasher).unwrap();
-                    }
-                }
-                // Some(hasher.finish());
-                // hasher.finish();
-                WalkState::Continue
-            })
-        });
+    // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/examples/walk.rs
+    let (tx, rx) = unbounded();
+    let walker = WalkBuilder::new(dir_path).threads(6).build_parallel();
+    let mut count = 0;
+    walker.run(|| {
+        let tx = tx.clone();
+        Box::new(move |result| {
+            use ignore::WalkState::*;
 
-    hasher.finish();
-    dbg!(hasher);
-    // hashes
-    // return hasher.finish();
-    // let mut all_hasher = ahash::AHasher::default();
-    // for hash in hashes {
-    //     all_hasher.write_u64(hash);
-    // }
+            count += 1;
+            let entry = result.unwrap();
+            println!(
+                "{} metadata is {:?}",
+                count,
+                // result,
+                entry.metadata()
+            );
+            // tx.send(result.unwrap());
+            if entry.metadata().unwrap().is_file() {
+                tx.send(entry);
+            }
+            Continue
+        })
+    });
+    drop(tx);
+    println!("about to collect all messages");
+    // Collect all messages from the channel.
+    // Note that the call to `collect` blocks until the sender is dropped.
+    let mut entries: Vec<DirEntry> = rx.iter().collect();
+    // dbg!(entries);
+    // It might be faster to make a new Vec<&Path> so we can use par_sort_by
+    // entries.sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+    entries.par_sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+    let sorted_paths: Vec<&Path> = entries.iter().map(|entry| entry.path()).collect();
+
+    println!("Path is {:?}", entries[2].path());
+    let hashes: Vec<u64> = sorted_paths
+        .par_iter()
+        .filter_map(|path| {
+            let mut hasher = ahash::AHasher::default();
+            if thoroughness == 1 {
+                // Compare file names by adding them to the hash
+                let file_name = path.file_name();
+                hasher.write(file_name.unwrap().as_bytes());
+            }
+            if thoroughness >= 2 {
+                // Compare relative file paths, including file names, by adding them to the hash
+                let rel_path = get_path_relative_to_dir(dir_path, path);
+                hasher.write(rel_path.as_os_str().as_bytes());
+            }
+            // if thoroughness >= 3 {
+            //     // Compare by file size
+            //     let file_size = entry.metadata().expect("Error reading a file's size").len();
+            //     hasher.write(&file_size.to_ne_bytes());
+            // }
+            if thoroughness == 4 {
+                // Hash all file contents
+                let file = fs::File::open(path).expect("Error opening a file for hashing");
+                if let Some(mmap) = maybe_memmap_file(&file) {
+                    // let _n = io::copy(&mut io::Cursor::new(mmap), &mut hasher)
+                    //     .expect("Error hashing a file");
+                    let cursor = &mut io::Cursor::new(mmap);
+                    hasher.write(cursor.get_ref());
+                } else {
+                    // Not sure how to do the following with rayon/in parallel
+                    // See: https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L224-L235
+                    // let _n = io::copy(&mut file, &mut hasher).expect("Error hashing a file");
+                    hash_file(path, &mut hasher).unwrap();
+                }
+            }
+            Some(hasher.finish())
+        })
+        .collect();
+    let mut all_hasher = ahash::AHasher::default();
+    for hash in hashes {
+        all_hasher.write_u64(hash);
+    }
+    all_hasher.finish()
 }
 
 // https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L276-L306

@@ -77,7 +77,7 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
     let hashes = builder
         .sort_by_file_path(|a, b| a.partial_cmp(b).unwrap())
         .build_parallel()
-        .run(|| {
+        .visit(|| {
             Box::new(|entry| {
                 println!("'path' is {:?}", entry);
                 let path = entry.as_ref().unwrap().path();

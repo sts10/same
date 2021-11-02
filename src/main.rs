@@ -74,7 +74,7 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
     let hashes: Vec<u64> = sorted_paths
         .par_iter() // maybe the other one
         .filter_map(|path| {
-            let mut hasher = seahash::SeaHasher::new();
+            let mut hasher = ahash::AHasher::default();
             if thoroughness == 1 {
                 // Compare file names by adding them to the hash
                 let file_name = path.file_name().unwrap();
@@ -92,7 +92,7 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
             // }
             if thoroughness == 4 {
                 // Hash all file contents
-                let file = fs::File::open(&path).expect("Error opening a file for hashing");
+                let mut file = fs::File::open(&path).expect("Error opening a file for hashing");
                 if let Some(mmap) = maybe_memmap_file(&file) {
                     // let _n = io::copy(&mut io::Cursor::new(mmap), &mut hasher)
                     //     .expect("Error hashing a file");
@@ -103,18 +103,20 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
                     // See: https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L224-L235
                     // let _n = io::copy(&mut file, &mut hasher).expect("Error hashing a file");
                     // let bytes = file.bytes().map(|byte| byte.unwrap()).collect();
-                    let mut bytes = vec![];
-                    for byte in file.bytes() {
-                        bytes.push(byte.unwrap());
-                    }
-                    hasher.write(&bytes);
+                    // let mut bytes = vec![];
+                    // for byte in file.bytes() {
+                    //     bytes.push(byte.unwrap());
+                    // }
+                    // hasher.write(&bytes);
+                    let mut buffer = Vec::new();
+                    hasher.write_u64(file.read(&mut buffer).unwrap().try_into().unwrap());
                 }
             }
             Some(hasher.finish())
         })
         .collect();
 
-    let mut all_hasher = seahash::SeaHasher::new();
+    let mut all_hasher = ahash::AHasher::default();
     for hash in hashes {
         all_hasher.write_u64(hash);
     }

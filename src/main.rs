@@ -3,7 +3,8 @@ use rayon::iter::ParallelIterator;
 use rayon::prelude::ParallelSliceMut;
 use std::fs::File;
 use std::hash::Hasher;
-use std::io::Read;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::path::PathBuf;
@@ -71,12 +72,12 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
             sorted_entries.push(entry)
         }
     }
+    // Maybe should switch this order for efficiency's sake?
     sorted_entries.par_sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
-
     let sorted_paths: Vec<&Path> = sorted_entries.iter().map(|entry| entry.path()).collect();
     // for entry in sort_dir_par(dir_path) {
     let hashes: Vec<u64> = sorted_paths
-        .par_iter() // maybe the other one
+        .par_iter()
         .filter_map(|path| {
             let mut hasher = ahash::AHasher::default();
             if thoroughness == 1 {
@@ -85,7 +86,7 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
                 hasher.write(file_name.as_bytes());
             }
             if thoroughness >= 2 {
-                // Compare realtive file paths, including file names, by adding them to the hash
+                // Compare relative file paths, including file names, by adding them to the hash
                 let rel_path = get_path_relative_to_dir(dir_path, path);
                 hasher.write(rel_path.as_os_str().as_bytes());
             }
@@ -96,7 +97,7 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
             // }
             if thoroughness == 4 {
                 // Hash all file contents
-                let mut file = fs::File::open(&path).expect("Error opening a file for hashing");
+                let file = fs::File::open(&path).expect("Error opening a file for hashing");
                 if let Some(mmap) = maybe_memmap_file(&file) {
                     // let _n = io::copy(&mut io::Cursor::new(mmap), &mut hasher)
                     //     .expect("Error hashing a file");
@@ -106,14 +107,7 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
                     // Not sure how to do the following with rayon/in parallel
                     // See: https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L224-L235
                     // let _n = io::copy(&mut file, &mut hasher).expect("Error hashing a file");
-                    // let bytes = file.bytes().map(|byte| byte.unwrap()).collect();
-                    // let mut bytes = vec![];
-                    // for byte in file.bytes() {
-                    //     bytes.push(byte.unwrap());
-                    // }
-                    // hasher.write(&bytes);
-                    let mut buffer = Vec::new();
-                    hasher.write_u64(file.read(&mut buffer).unwrap().try_into().unwrap());
+                    hash_file(path, &mut hasher).unwrap();
                 }
             }
             Some(hasher.finish())
@@ -159,6 +153,24 @@ fn maybe_memmap_file(file: &File) -> Option<memmap::Mmap> {
                 .unwrap()
         };
         Some(map)
+    }
+}
+
+fn hash_file(path: &Path, hasher: &mut impl Hasher) -> Result<(), io::Error> {
+    let file = File::open(path)?;
+    let mut reader = BufReader::new(file);
+    loop {
+        // Read some data.
+        let buffer: &[u8] = reader.fill_buf()?;
+        if buffer.is_empty() {
+            // End of file.
+            return Ok(());
+        }
+        // Hash it!
+        hasher.write(buffer);
+        // Tell the reader we consumed all the data it gave us.
+        let size = buffer.len();
+        reader.consume(size);
     }
 }
 

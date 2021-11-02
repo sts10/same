@@ -62,12 +62,16 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
     // each run
 
     let mut sorted_entries: Vec<walkdir::DirEntry> = vec![];
-    for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(dir_path)
+        .sort_by_file_name()
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         if entry.metadata().unwrap().is_file() {
             sorted_entries.push(entry)
         }
     }
-    sorted_entries.sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+    // sorted_entries.par_sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
 
     let sorted_paths: Vec<&Path> = sorted_entries.iter().map(|entry| entry.path()).collect();
     // for entry in sort_dir_par(dir_path) {

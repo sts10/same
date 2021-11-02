@@ -42,7 +42,7 @@ fn main() {
         panic!("Didn't find anything hash or compare!")
     } else if hashes.len() == 1 {
         println!(
-            "blake3sum for {:?} is\n{}",
+            "hash for {:?} is\n{:?}",
             fs::canonicalize(&opt.inputted_directories[0]).unwrap(),
             hashes[0]
         );
@@ -63,7 +63,8 @@ fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a Pat
 //     vector.push(entry);
 // }
 
-fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
+fn hash_dir(dir_path: &Path, thoroughness: usize) {
+    //  -> u64 {
     if !dir_path.is_dir() {
         panic!("Not a directory! Quitting");
     }
@@ -77,7 +78,7 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
     let hashes = builder
         .sort_by_file_path(|a, b| a.partial_cmp(b).unwrap())
         .build_parallel()
-        .visit(|| {
+        .run(|| {
             Box::new(|entry| {
                 println!("'path' is {:?}", entry);
                 let path = entry.as_ref().unwrap().path();
@@ -112,12 +113,14 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
                     }
                 }
                 // Some(hasher.finish());
-                hasher.finish();
+                // hasher.finish();
                 WalkState::Continue
             })
         });
 
-    hashes
+    hasher.finish();
+    dbg!(hasher);
+    // hashes
     // return hasher.finish();
     // let mut all_hasher = ahash::AHasher::default();
     // for hash in hashes {

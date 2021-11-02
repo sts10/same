@@ -22,8 +22,7 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -t, --thoroughness <thoroughness>    How thorough to be when comparing directories. 1 checks file names; 2 checks
-                                         paths relative to inputted directory; 4 checks the actual files
+    -t, --thoroughness <thoroughness>    How thorough to be when comparing directories. 1 checks file names; 2 checks paths relative to inputted directory; 3 checks file size; 4 checks the actual files
 
 ARGS:
     <Inputted Directories>...    Directories to compare for sameness
@@ -35,8 +34,10 @@ Setting `thoroughness` to...
 
 - 1 checks file names (not paths).
 - 2 checks file _paths_ relative to inputted directories.
-- 3 is not implemented yet, but I'm hoping to have it check file modified times.
-- 4 checks relative paths and hashes every file in both directories and compares all that.
+- 3 checks the sizes of all files, as well as file paths relative to inputted directories.
+- 4 checks relative paths, file sizes, and hashes of every file in inputted directories.
+
+If you have an idea of how to use file modified times for a check, make an issue!
 
 ## Hashing function used
 

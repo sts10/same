@@ -11,7 +11,7 @@ use walkdir::WalkDir;
 #[structopt(name = "same")]
 struct Opt {
     /// How thorough to be when comparing directories. 1 checks file names; 2 checks paths relative
-    /// to inputted directory; 4 checks the actual files
+    /// to inputted directory; 3 checks file size; 4 checks the actual files
     #[structopt(short = "t", long = "thoroughness")]
     thoroughness: usize,
 
@@ -62,14 +62,22 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> blake3::Hash {
         .filter_map(|e| e.ok())
     {
         if thoroughness == 1 {
+            // Compare file names by adding them to the hash
             let file_name = entry.path().file_name().unwrap();
             hasher.update_rayon(file_name.as_bytes());
         }
         if thoroughness >= 2 {
+            // Compare realtive file paths, including file names, by adding them to the hash
             let rel_path = get_path_relative_to_dir(dir_path, entry.path());
             hasher.update_rayon(rel_path.as_os_str().as_bytes());
         }
+        if thoroughness >= 3 {
+            // Compare by file size
+            let file_size = entry.metadata().expect("Error reading a file's size").len();
+            hasher.update_rayon(&file_size.to_ne_bytes());
+        }
         if thoroughness == 4 {
+            // Hash all file contents
             if !entry.metadata().unwrap().is_file() {
                 continue;
             }
@@ -143,6 +151,13 @@ mod basic_tests {
         let path1 = Path::new("/home/sschlinkert/code/tic-tac-go");
         let path2 = Path::new("/home/sschlinkert/code/tidy");
         assert_ne!(hash_dir(&path1, 4), hash_dir(&path2, 4));
+    }
+
+    #[test]
+    fn can_detect_files_differing_solely_based_on_file_size() {
+        let path1 = Path::new("./test-files/bar");
+        let path2 = Path::new("./test-files/corrupted_back_up/bar");
+        assert_ne!(hash_dir(&path1, 3), hash_dir(&path2, 3));
     }
 
     #[test]

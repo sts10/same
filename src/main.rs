@@ -1,6 +1,6 @@
 use rayon::iter::IntoParallelRefIterator;
-
 use rayon::iter::ParallelIterator;
+use rayon::prelude::ParallelSliceMut;
 use std::fs::File;
 use std::hash::Hasher;
 use std::io::Read;
@@ -63,7 +63,7 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
 
     let mut sorted_entries: Vec<walkdir::DirEntry> = vec![];
     for entry in WalkDir::new(dir_path)
-        .sort_by_file_name()
+        // .sort_by_file_name()
         .into_iter()
         .filter_map(|e| e.ok())
     {
@@ -71,7 +71,7 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
             sorted_entries.push(entry)
         }
     }
-    // sorted_entries.par_sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+    sorted_entries.par_sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
 
     let sorted_paths: Vec<&Path> = sorted_entries.iter().map(|entry| entry.path()).collect();
     // for entry in sort_dir_par(dir_path) {

@@ -75,7 +75,8 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
 
     // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/examples/walk.rs
     let (tx, rx) = unbounded();
-    let walker = WalkBuilder::new(dir_path).threads(6).build_parallel();
+    // Maybe from this? https://github.com/dtolnay/sha1dir/blob/master/src/main.rs#L86-L87
+    let walker = WalkBuilder::new(dir_path).threads(8).build_parallel();
     let mut count = 0;
     walker.run(|| {
         let tx = tx.clone();
@@ -221,7 +222,7 @@ mod basic_tests {
     #[test]
     fn can_determine_copied_directory_is_same_from_paths() {
         let test_path = Path::new("./test-files/bar");
-        assert_eq!(hash_dir(&test_path, 1), hash_dir(&test_path, 1),);
+        assert_eq!(hash_dir(&test_path, 1), hash_dir(&test_path, 1));
     }
 
     #[test]
@@ -231,18 +232,18 @@ mod basic_tests {
         assert_ne!(hash_dir(&path1, 4), hash_dir(&path2, 4));
     }
 
-    // #[test]
-    // fn can_detect_files_differing_solely_based_on_file_size() {
-    //     let path1 = Path::new("./test-files/bar");
-    //     let path2 = Path::new("./test-files/corrupted_back_up/bar");
-    //     assert_ne!(hash_dir(&path1, 3), hash_dir(&path2, 3));
-    // }
+    #[test]
+    fn can_detect_files_differing_solely_based_on_file_content() {
+        let path1 = Path::new("./test-files/bar");
+        let path2 = Path::new("./test-files/corrupted_back_up/bar");
+        assert_ne!(hash_dir(&path1, 4), hash_dir(&path2, 4));
+    }
 
     #[test]
     fn can_determine_copied_directory_is_same_from_paths_even_have_have_different_dir_name() {
         let test_path1 = Path::new("./test-files/bar");
         let test_path2 = Path::new("./test-files/baz");
-        assert_eq!(hash_dir(&test_path1, 2), hash_dir(&test_path2, 2),);
+        assert_eq!(hash_dir(&test_path1, 2), hash_dir(&test_path2, 2));
     }
 
     #[test]
@@ -250,7 +251,7 @@ mod basic_tests {
     ) {
         let test_path1 = Path::new("./test-files/bar");
         let test_path2 = Path::new("./test-files/back-ups/bar");
-        assert_eq!(hash_dir(&test_path1, 4), hash_dir(&test_path2, 4),);
+        assert_eq!(hash_dir(&test_path1, 4), hash_dir(&test_path2, 4));
     }
 
     #[test]

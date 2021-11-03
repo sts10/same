@@ -99,20 +99,19 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
         })
     });
     drop(tx);
-    println!("about to collect all messages");
     // Collect all messages from the channel.
     // Note that the call to `collect` blocks until the sender is dropped.
     let mut entries: Vec<DirEntry> = rx.iter().collect();
-    // dbg!(entries);
-    // It might be faster to make a new Vec<&Path> so we can use par_sort_by
-    // entries.sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
-    entries.par_sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+    // Our choice here is whether to sort and iterate through ENTRIES or PATHS
+    // Using entries gives us access to more data about each file, including metadat,
+    // Using paths seems to be approximately 4% faster in a casual test.
     // let sorted_paths: Vec<&Path> = entries.iter().map(|entry| entry.path()).collect();
+    entries.par_sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
 
     let hashes: Vec<u64> = entries
         .par_iter()
         .filter_map(|entry| {
-            let path = entry.path();
+            let path = entry.path(); // if we iterate through sorted_paths we obviously wouldn't need this
             let mut hasher = ahash::AHasher::default();
             if thoroughness == 1 {
                 // Compare file names by adding them to the hash
@@ -151,6 +150,8 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
         .collect();
     let mut all_hasher = ahash::AHasher::default();
 
+    // Another idea: Rather than sorting entries or paths aboves,
+    // sort the hashes here
     // hashes.par_sort_by(|a, b| a.partial_cmp(b).unwrap());
     for hash in hashes {
         all_hasher.write_u64(hash);

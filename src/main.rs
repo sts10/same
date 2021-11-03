@@ -63,10 +63,6 @@ fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a Pat
     full_path.strip_prefix(dir_path).unwrap()
 }
 
-// fn push_entry(entry: ignore::DirEntry, vector: &mut Vec<DirEntry) {
-//     vector.push(entry);
-// }
-
 fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
     if !dir_path.is_dir() {
         panic!("Not a directory! Quitting");
@@ -75,23 +71,14 @@ fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
 
     // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/examples/walk.rs
     let (tx, rx) = unbounded();
+    // Should probably find a way to find user's number of threads
     // Maybe from this? https://github.com/dtolnay/sha1dir/blob/master/src/main.rs#L86-L87
     let walker = WalkBuilder::new(dir_path).threads(8).build_parallel();
-    let mut count = 0;
     walker.run(|| {
         let tx = tx.clone();
         Box::new(move |result| {
             use ignore::WalkState::*;
-
-            count += 1;
             let entry = result.unwrap();
-            println!(
-                "{} metadata is {:?}",
-                count,
-                // result,
-                entry.metadata()
-            );
-            // tx.send(result.unwrap());
             // if entry.metadata().unwrap().is_file() {
             tx.send(entry);
             // }
@@ -194,7 +181,7 @@ fn maybe_memmap_file(file: &File) -> Option<memmap::Mmap> {
     }
 }
 
-fn hash_file(path: &Path, hasher: &mut impl Hasher) -> Result<(), io::Error> {
+pub fn hash_file(path: &Path, hasher: &mut impl Hasher) -> Result<(), io::Error> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     loop {

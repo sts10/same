@@ -22,3 +22,7 @@ fasthash = "0.4.0"
 [[bench]]
 name = "hash_file"
 harness = false
+
+[[bench]]
+name = "hash_dir"
+harness = false

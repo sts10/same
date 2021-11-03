@@ -8,6 +8,10 @@ use structopt::StructOpt;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "same")]
 struct Opt {
+    /// Give verbose output
+    #[structopt(short = "v", long = "verbose")]
+    verbose: bool,
+
     /// How thorough to be when comparing directories. 1 checks file names; 2 checks paths relative
     /// to inputted directory; 3 checks file size; 4 checks the actual files
     #[structopt(short = "t", long = "thoroughness")]
@@ -22,7 +26,7 @@ fn main() {
     let opt = Opt::from_args();
     let mut hashes = vec![];
     for directory in &opt.inputted_directories {
-        hashes.push(hash_dir(directory, opt.thoroughness))
+        hashes.push(hash_dir(directory, opt.thoroughness, opt.verbose))
     }
 
     if hashes.is_empty() {

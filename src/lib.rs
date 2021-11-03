@@ -21,11 +21,13 @@ pub fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a
     full_path.strip_prefix(dir_path).unwrap()
 }
 
-pub fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
+pub fn hash_dir(dir_path: &Path, thoroughness: usize, verbose: bool) -> u64 {
     if !dir_path.is_dir() {
         panic!("Not a directory! Quitting");
     }
-    println!("Checking directory: {:?}", dir_path);
+    if verbose {
+        println!("Checking directory: {:?}", dir_path);
+    }
 
     // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/examples/walk.rs
     let (tx, rx) = unbounded();
@@ -38,7 +40,7 @@ pub fn hash_dir(dir_path: &Path, thoroughness: usize) -> u64 {
             use ignore::WalkState::*;
             let entry = result.unwrap();
             // if entry.metadata().unwrap().is_file() {
-            tx.send(entry);
+            tx.send(entry).unwrap();
             // }
             Continue
         })

@@ -1,35 +1,9 @@
 extern crate fxhash;
 
 use criterion::{criterion_group, criterion_main, Criterion};
-// use fasthash::{xx, XXHasher};
 use fasthash::FastHasher;
-// use fxhash::FxHasher;
-use std::fs::File;
-use std::hash::Hasher;
-use std::io::BufRead;
-use std::io::BufReader;
+use same::*;
 use std::path::Path;
-// use std::{fs, io};
-use std::io;
-
-// Pasted this from src/main.rs for now
-fn hash_file(path: &Path, hasher: &mut impl Hasher) -> Result<(), io::Error> {
-    let file = File::open(path)?;
-    let mut reader = BufReader::new(file);
-    loop {
-        // Read some data.
-        let buffer: &[u8] = reader.fill_buf()?;
-        if buffer.is_empty() {
-            // End of file.
-            return Ok(());
-        }
-        // Hash it!
-        hasher.write(buffer);
-        // Tell the reader we consumed all the data it gave us.
-        let size = buffer.len();
-        reader.consume(size);
-    }
-}
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("Hash a file");

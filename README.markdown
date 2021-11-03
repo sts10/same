@@ -39,8 +39,8 @@ Setting `thoroughness` to...
 
 If you have an idea of how to use file modified times for a check, make an issue!
 
-<!-- ## Hashing function used -->
+## Hashing function used
 
-<!-- To hash file names, paths, and files, this project uses [BLAKE3](https://github.com/BLAKE3-team/BLAKE3). --> 
+To hash file names, paths, and files, this project uses [AHash](https://docs.rs/ahash/0.7.6/ahash/index.html). Note that AHash is **not** a cryptographically secure hash.
 
-<!-- You may also be interested in [the b3sum utility](https://github.com/BLAKE3-team/BLAKE3#the-b3sum-utility). -->
+You can compare multiple "fast" hashes with this project by running `cargo bench --bench hash_file`.

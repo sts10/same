@@ -47,6 +47,10 @@ mod same_tests {
     fn can_detect_files_differing_solely_based_on_file_content() {
         let path1 = Path::new("tests/test-files/bar");
         let path2 = Path::new("tests/test-files/corrupted_back_up/bar");
+        // t=1 is too dumb for this test...
+        assert_eq!(hash_dir(&path1, 1, false), hash_dir(&path2, 1, false));
+        // but t=3 and t-4 should spot the difference
+        assert_ne!(hash_dir(&path1, 3, false), hash_dir(&path2, 3, false));
         assert_ne!(hash_dir(&path1, 4, false), hash_dir(&path2, 4, false));
     }
 

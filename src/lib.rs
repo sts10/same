@@ -70,11 +70,11 @@ pub fn hash_dir(dir_path: &Path, thoroughness: usize, verbose: bool) -> u64 {
                 let rel_path = get_path_relative_to_dir(dir_path, path);
                 hasher.write(rel_path.as_os_str().as_bytes());
             }
-            // if thoroughness >= 3 {
-            //     // Compare by file size
-            //     let file_size = entry.metadata().expect("Error reading a file's size").len();
-            //     hasher.write(&file_size.to_ne_bytes());
-            // }
+            if thoroughness >= 3 {
+                // Compare by file size
+                let file_size = entry.metadata().expect("Error reading a file's size").len();
+                hasher.write(&file_size.to_ne_bytes());
+            }
             if thoroughness == 4 {
                 // Hash all file contents
                 if entry.metadata().unwrap().is_file() {

@@ -1,11 +1,12 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use same::*;
 use std::path::Path;
+use std::time::Duration;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("Hash a directory");
-    // group.significance_level(0.1).sample_size(100);
-    group.sample_size(25);
+    // https://docs.rs/criterion/0.3.5/criterion/struct.BenchmarkGroup.html
+    group.measurement_time(Duration::new(20, 0));
     let path = Path::new("/home/sschlinkert/Pictures");
 
     group.bench_function("t=4", |b| {

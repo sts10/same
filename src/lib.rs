@@ -88,7 +88,7 @@ pub fn hash_dir(dir_path: &Path, thoroughness: usize, verbose: bool) -> u64 {
                         // Not sure how to do the following with rayon/in parallel
                         // See: https://github.com/BLAKE3-team/BLAKE3/blob/master/b3sum/src/main.rs#L224-L235
                         // let _n = io::copy(&mut file, &mut hasher).expect("Error hashing a file");
-                        hash_file(path, &mut hasher).unwrap();
+                        hash_file(&file, &mut hasher).unwrap();
                     }
                 }
             }
@@ -141,8 +141,8 @@ fn maybe_memmap_file(file: &File) -> Option<memmap::Mmap> {
     }
 }
 
-pub fn hash_file(path: &Path, hasher: &mut impl Hasher) -> Result<(), io::Error> {
-    let file = File::open(path)?;
+pub fn hash_file(file: &File, hasher: &mut impl Hasher) -> Result<(), io::Error> {
+    // let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     loop {
         // Read some data.

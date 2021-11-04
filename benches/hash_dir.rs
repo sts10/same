@@ -10,10 +10,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let path = Path::new("/home/sschlinkert/Pictures");
 
     group.bench_function("t=4", |b| {
-        b.iter(|| hash_dir(path, 4, false));
+        b.iter(|| hash_dir(path, 4, false, false));
     });
     group.bench_function("t=2", |b| {
-        b.iter(|| hash_dir(path, 2, false));
+        b.iter(|| hash_dir(path, 2, false, false));
     });
 }
 

@@ -15,14 +15,18 @@ This is a toy for now, **so don't actually use this!**
 
 ```
 USAGE:
-    same --thoroughness <thoroughness> [Inputted Directories]...
+    same [FLAGS] --thoroughness <thoroughness> [Inputted Directories]...
 
 FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+    -h, --help             Prints help information
+        --ignore-hidden    Ignore hidden files
+    -V, --version          Prints version information
+    -v, --verbose          Give verbose output
 
 OPTIONS:
-    -t, --thoroughness <thoroughness>    How thorough to be when comparing directories. 1 checks file names; 2 checks paths relative to inputted directory; 3 checks file size; 4 checks the actual files
+    -t, --thoroughness <thoroughness>    How thorough to be when comparing directories. 1 checks file names; 2 checks
+                                         paths relative to inputted directory; 3 checks file size; 4 checks the actual
+                                         files
 
 ARGS:
     <Inputted Directories>...    Directories to compare for sameness

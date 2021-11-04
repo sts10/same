@@ -21,7 +21,7 @@ pub fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a
     full_path.strip_prefix(dir_path).unwrap()
 }
 
-pub fn hash_dir(dir_path: &Path, thoroughness: usize, verbose: bool) -> u64 {
+pub fn hash_dir(dir_path: &Path, thoroughness: usize, verbose: bool, ignore_hidden: bool) -> u64 {
     if !dir_path.is_dir() {
         panic!("Not a directory! Quitting");
     }
@@ -33,7 +33,10 @@ pub fn hash_dir(dir_path: &Path, thoroughness: usize, verbose: bool) -> u64 {
     let (tx, rx) = unbounded();
     // Should probably find a way to find user's number of threads
     // Maybe from this? https://github.com/dtolnay/sha1dir/blob/master/src/main.rs#L86-L87
-    let walker = WalkBuilder::new(dir_path).threads(8).build_parallel();
+    let walker = WalkBuilder::new(dir_path)
+        .hidden(ignore_hidden)
+        .threads(8)
+        .build_parallel();
     walker.run(|| {
         let tx = tx.clone();
         Box::new(move |result| {

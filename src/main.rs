@@ -17,7 +17,7 @@ struct Opt {
     #[structopt(long = "ignore-hidden")]
     ignore_hidden: bool,
 
-    /// Exclude files from comparison
+    /// Exclude files from comparison, relative to the given directories
     #[structopt(long = "exclude")]
     exclude: Option<Vec<String>>,
 

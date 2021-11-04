@@ -15,7 +15,7 @@ This is a toy for now, **so don't actually use this!**
 
 ```
 USAGE:
-    same [FLAGS] --thoroughness <thoroughness> [Inputted Directories]...
+    same [FLAGS] [OPTIONS] --thoroughness <thoroughness> [--] [Inputted Directories]...
 
 FLAGS:
     -h, --help             Prints help information
@@ -24,6 +24,7 @@ FLAGS:
     -v, --verbose          Give verbose output
 
 OPTIONS:
+        --exclude <exclude>...           Exclude files from comparison, relative to the given directories
     -t, --thoroughness <thoroughness>    How thorough to be when comparing directories. 1 checks file names; 2 checks
                                          paths relative to inputted directory; 3 checks file size; 4 checks the actual
                                          files

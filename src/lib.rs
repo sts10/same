@@ -42,14 +42,15 @@ fn build_override(dir_path: &Path, exclude_globs: &Option<Vec<String>>) -> Overr
 }
 
 fn find_entries(dir_path: &Path, ignore_hidden: bool, my_override: Override) -> Vec<DirEntry> {
-    // Based off of this example: https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/examples/walk.rs
+    let cpus = num_cpus::get(); // Get number of available CPUs of the current system
+                                // Based off of this example: https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/examples/walk.rs
     let (tx, rx) = unbounded();
     let walker = WalkBuilder::new(dir_path)
         .hidden(ignore_hidden) // whether we want to ignore hidden
         .overrides(my_override) // end user's exclude choices
         // Should probably find a way to find user's number of threads
         // Maybe from this? https://github.com/dtolnay/sha1dir/blob/master/src/main.rs#L86-L87
-        .threads(8)
+        .threads(cpus)
         .build_parallel();
     walker.run(|| {
         let tx = tx.clone();

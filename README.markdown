@@ -1,6 +1,6 @@
-# Same
+# Same 
 
-Compare two or more directories to see if they're the same.
+Compare two or more directories to see if they're the same, with a set amount of thoroughness.
 
 ## Disclaimers
 

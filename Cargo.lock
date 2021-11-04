@@ -651,6 +651,7 @@ dependencies = [
  "glob",
  "ignore",
  "memmap",
+ "num_cpus",
  "rayon",
  "seahash 4.1.0",
  "structopt",

@@ -6,6 +6,7 @@ use rayon::prelude::ParallelSliceMut;
 // use crossbeam_utils::thread;
 use crossbeam_channel::unbounded;
 // use ignore::overrides::Glob;
+use ignore::overrides::Override;
 use ignore::DirEntry;
 use std::fs::File;
 use std::hash::Hasher;
@@ -22,20 +23,7 @@ pub fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a
     full_path.strip_prefix(dir_path).unwrap()
 }
 
-pub fn hash_dir(
-    dir_path: &Path,
-    thoroughness: usize,
-    verbose: bool,
-    ignore_hidden: bool,
-    exclude_globs: &Option<Vec<String>>,
-) -> u64 {
-    if !dir_path.is_dir() {
-        panic!("Not a directory! Quitting");
-    }
-    if verbose {
-        println!("Checking directory: {:?}", dir_path);
-    }
-
+fn build_override(dir_path: &Path, exclude_globs: &Option<Vec<String>>) -> Override {
     // https://docs.rs/ignore/0.4.18/ignore/overrides/struct.OverrideBuilder.html
     let mut my_override_builder = ignore::overrides::OverrideBuilder::new(dir_path);
     match exclude_globs {
@@ -46,17 +34,21 @@ pub fn hash_dir(
                     .expect("Error adding an exclusion glob to override builder");
             }
         }
+        // if no excludes found from end user, don't call `add` so
+        // return override is empty (no exclusions)
         None => (),
     };
-    let my_override = my_override_builder.build().unwrap();
+    my_override_builder.build().unwrap()
+}
 
-    // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/examples/walk.rs
+fn find_entries(dir_path: &Path, ignore_hidden: bool, my_override: Override) -> Vec<DirEntry> {
+    // Based off of this example: https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/examples/walk.rs
     let (tx, rx) = unbounded();
-    // Should probably find a way to find user's number of threads
-    // Maybe from this? https://github.com/dtolnay/sha1dir/blob/master/src/main.rs#L86-L87
     let walker = WalkBuilder::new(dir_path)
-        .hidden(ignore_hidden)
-        .overrides(my_override)
+        .hidden(ignore_hidden) // whether we want to ignore hidden
+        .overrides(my_override) // end user's exclude choices
+        // Should probably find a way to find user's number of threads
+        // Maybe from this? https://github.com/dtolnay/sha1dir/blob/master/src/main.rs#L86-L87
         .threads(8)
         .build_parallel();
     walker.run(|| {
@@ -73,14 +65,15 @@ pub fn hash_dir(
     drop(tx);
     // Collect all messages from the channel.
     // Note that the call to `collect` blocks until the sender is dropped.
-    let mut entries: Vec<DirEntry> = rx.iter().collect();
-    // Our choice here is whether to sort and iterate through ENTRIES or PATHS
-    // Using entries gives us access to more data about each file, including metadat,
-    // Using paths seems to be approximately 4% faster in a casual test.
-    // let sorted_paths: Vec<&Path> = entries.iter().map(|entry| entry.path()).collect();
-    entries.par_sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+    rx.iter().collect()
+}
 
-    let hashes: Vec<u64> = entries
+fn make_hashes_from_entries(
+    entries: Vec<DirEntry>,
+    dir_path: &Path,
+    thoroughness: usize,
+) -> Vec<u64> {
+    entries
         .par_iter()
         .filter_map(|entry| {
             let path = entry.path(); // if we iterate through sorted_paths we obviously wouldn't need this
@@ -119,9 +112,35 @@ pub fn hash_dir(
             }
             Some(hasher.finish())
         })
-        .collect();
-    let mut all_hasher = ahash::AHasher::default();
+        .collect()
+}
 
+pub fn hash_dir(
+    dir_path: &Path,
+    thoroughness: usize,
+    verbose: bool,
+    ignore_hidden: bool,
+    exclude_globs: &Option<Vec<String>>,
+) -> u64 {
+    if !dir_path.is_dir() {
+        panic!("Not a directory! Quitting");
+    }
+    if verbose {
+        println!("Checking directory: {:?}", dir_path);
+    }
+
+    let my_override = build_override(dir_path, exclude_globs);
+
+    let mut entries: Vec<DirEntry> = find_entries(dir_path, ignore_hidden, my_override);
+    // Our choice here is whether to sort and iterate through ENTRIES or PATHS
+    // Using entries gives us access to more data about each file, including metadat,
+    // Using paths seems to be approximately 4% faster in a casual test.
+    // let sorted_paths: Vec<&Path> = entries.iter().map(|entry| entry.path()).collect();
+    entries.par_sort_by(|a, b| a.path().partial_cmp(b.path()).unwrap());
+
+    let hashes: Vec<u64> = make_hashes_from_entries(entries, dir_path, thoroughness);
+
+    let mut all_hasher = ahash::AHasher::default();
     // Another idea: Rather than sorting entries or paths aboves,
     // sort the hashes here
     // hashes.par_sort_by(|a, b| a.partial_cmp(b).unwrap());

@@ -42,24 +42,19 @@ fn build_override(dir_path: &Path, exclude_globs: &Option<Vec<String>>) -> Overr
 }
 
 fn find_entries(dir_path: &Path, ignore_hidden: bool, my_override: Override) -> Vec<DirEntry> {
-    let cpus = num_cpus::get(); // Get number of available CPUs of the current system
-                                // Based off of this example: https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/examples/walk.rs
-    let (tx, rx) = unbounded();
+    // Following is based off of this example: https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/examples/walk.rs
+    let (tx, rx) = unbounded(); // shound probably try to re-work this to use bounded
     let walker = WalkBuilder::new(dir_path)
-        .hidden(ignore_hidden) // whether we want to ignore hidden
-        .overrides(my_override) // end user's exclude choices
-        // Should probably find a way to find user's number of threads
-        // Maybe from this? https://github.com/dtolnay/sha1dir/blob/master/src/main.rs#L86-L87
-        .threads(cpus)
+        .hidden(ignore_hidden) // bool of whether we want to IGNORE hidden
+        .overrides(my_override) // End user's exclude choices
+        .threads(num_cpus::get()) // Get number of available CPUs of the current system
         .build_parallel();
     walker.run(|| {
         let tx = tx.clone();
         Box::new(move |result| {
             use ignore::WalkState::*;
             let entry = result.unwrap();
-            // if entry.metadata().unwrap().is_file() {
             tx.send(entry).unwrap();
-            // }
             Continue
         })
     });

@@ -1,3 +1,4 @@
+// use ignore::overrides::Glob;
 use same::hash_dir;
 use same::is_all_same;
 use std::fs;
@@ -15,6 +16,10 @@ struct Opt {
     /// Ignore hidden files
     #[structopt(long = "ignore-hidden")]
     ignore_hidden: bool,
+
+    /// Exclude files from comparison
+    #[structopt(long = "exclude")]
+    exclude: Option<Vec<String>>,
 
     /// How thorough to be when comparing directories. 1 checks file names; 2 checks paths relative
     /// to inputted directory; 3 checks file size; 4 checks the actual files
@@ -35,6 +40,7 @@ fn main() {
             opt.thoroughness,
             opt.verbose,
             opt.ignore_hidden,
+            &opt.exclude,
         ))
     }
 

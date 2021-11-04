@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 rayon = "1.5.1"
+glob = "0.3.0"
 memmap = "0.7.0"
 structopt = "0.3.25"
 ahash = "0.7.6"

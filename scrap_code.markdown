@@ -1,3 +1,22 @@
+Retaining only the non-excluded paths, using a `match` statement, rather than a fancier if let
+
+```rust
+    match paths_to_exclude {
+        Some(paths_to_exclude) => {
+            // Definitely taking ideas of how to do this more efficiently
+            entries.retain(|entry| {
+                !paths_to_exclude
+                    .iter()
+                    .map(|pb| pb.as_path())
+                    .any(|p| p == entry.path())
+            });
+        }
+        None => (),
+    }
+```
+
+
+
 One way to get relative path
 
 ```rust

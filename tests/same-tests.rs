@@ -6,16 +6,16 @@ mod same_tests {
     fn can_determine_same_directory_is_same() {
         let test_path = Path::new("tests/test-files/bar");
         assert_eq!(
-            hash_dir(&test_path, 1, false),
-            hash_dir(&test_path, 1, false)
+            hash_dir(&test_path, 1, &None, false),
+            hash_dir(&test_path, 1, &None, false)
         );
         assert_eq!(
-            hash_dir(&test_path, 2, false),
-            hash_dir(&test_path, 2, false)
+            hash_dir(&test_path, 2, &None, false),
+            hash_dir(&test_path, 2, &None, false)
         );
         assert_eq!(
-            hash_dir(&test_path, 4, false),
-            hash_dir(&test_path, 4, false)
+            hash_dir(&test_path, 4, &None, false),
+            hash_dir(&test_path, 4, &None, false)
         );
     }
 
@@ -23,9 +23,18 @@ mod same_tests {
     fn can_determine_different_directories_are_different() {
         let path1 = Path::new("/home/sschlinkert/code/tic-tac-go");
         let path2 = Path::new("/home/sschlinkert/code/tidy");
-        assert_ne!(hash_dir(&path1, 1, false), hash_dir(&path2, 1, false));
-        assert_ne!(hash_dir(&path1, 2, false), hash_dir(&path2, 2, false));
-        assert_ne!(hash_dir(&path1, 4, false), hash_dir(&path2, 4, false));
+        assert_ne!(
+            hash_dir(&path1, 1, &None, false),
+            hash_dir(&path2, 1, &None, false)
+        );
+        assert_ne!(
+            hash_dir(&path1, 2, &None, false),
+            hash_dir(&path2, 2, &None, false)
+        );
+        assert_ne!(
+            hash_dir(&path1, 4, &None, false),
+            hash_dir(&path2, 4, &None, false)
+        );
     }
 
     #[test]
@@ -34,12 +43,12 @@ mod same_tests {
         let test_path1 = Path::new("tests/test-files/bar");
         let test_path2 = Path::new("tests/test-files/back-ups/bar");
         assert_eq!(
-            hash_dir(&test_path1, 2, false),
-            hash_dir(&test_path2, 2, false)
+            hash_dir(&test_path1, 2, &None, false),
+            hash_dir(&test_path2, 2, &None, false)
         );
         assert_eq!(
-            hash_dir(&test_path1, 4, false),
-            hash_dir(&test_path2, 4, false)
+            hash_dir(&test_path1, 4, &None, false),
+            hash_dir(&test_path2, 4, &None, false)
         );
     }
 
@@ -48,10 +57,19 @@ mod same_tests {
         let path1 = Path::new("tests/test-files/bar");
         let path2 = Path::new("tests/test-files/corrupted_back_up/bar");
         // t=1 is too dumb for this test...
-        assert_eq!(hash_dir(&path1, 1, false), hash_dir(&path2, 1, false));
+        assert_eq!(
+            hash_dir(&path1, 1, &None, false),
+            hash_dir(&path2, 1, &None, false)
+        );
         // but t=3 and t-4 should spot the difference
-        assert_ne!(hash_dir(&path1, 3, false), hash_dir(&path2, 3, false));
-        assert_ne!(hash_dir(&path1, 4, false), hash_dir(&path2, 4, false));
+        assert_ne!(
+            hash_dir(&path1, 3, &None, false),
+            hash_dir(&path2, 3, &None, false)
+        );
+        assert_ne!(
+            hash_dir(&path1, 4, &None, false),
+            hash_dir(&path2, 4, &None, false)
+        );
     }
 
     #[test]
@@ -59,12 +77,12 @@ mod same_tests {
         let test_path1 = Path::new("tests/test-files/bar");
         let test_path2 = Path::new("tests/test-files/baz");
         assert_eq!(
-            hash_dir(&test_path1, 2, false),
-            hash_dir(&test_path2, 2, false)
+            hash_dir(&test_path1, 2, &None, false),
+            hash_dir(&test_path2, 2, &None, false)
         );
         assert_eq!(
-            hash_dir(&test_path1, 4, false),
-            hash_dir(&test_path2, 4, false)
+            hash_dir(&test_path1, 4, &None, false),
+            hash_dir(&test_path2, 4, &None, false)
         );
     }
 }

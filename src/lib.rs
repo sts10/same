@@ -12,6 +12,7 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
+use std::path::PathBuf;
 use std::{fs, io};
 // use walkdir::WalkDir;
 // use ignore::DirEntry;
@@ -21,14 +22,7 @@ pub fn get_path_relative_to_dir<'a>(dir_path: &Path, full_path: &'a Path) -> &'a
     full_path.strip_prefix(dir_path).unwrap()
 }
 
-pub fn hash_dir(dir_path: &Path, thoroughness: usize, verbose: bool) -> u64 {
-    if !dir_path.is_dir() {
-        panic!("Not a directory! Quitting");
-    }
-    if verbose {
-        println!("Checking directory: {:?}", dir_path);
-    }
-
+fn find_entries(dir_path: &Path) -> Vec<DirEntry> {
     // https://github.com/BurntSushi/ripgrep/blob/master/crates/ignore/examples/walk.rs
     let (tx, rx) = unbounded();
     // Should probably find a way to find user's number of threads
@@ -39,16 +33,46 @@ pub fn hash_dir(dir_path: &Path, thoroughness: usize, verbose: bool) -> u64 {
         Box::new(move |result| {
             use ignore::WalkState::*;
             let entry = result.unwrap();
-            // if entry.metadata().unwrap().is_file() {
             tx.send(entry).unwrap();
-            // }
             Continue
         })
     });
     drop(tx);
     // Collect all messages from the channel.
     // Note that the call to `collect` blocks until the sender is dropped.
-    let mut entries: Vec<DirEntry> = rx.iter().collect();
+    rx.iter().collect()
+}
+
+pub fn hash_dir(
+    dir_path: &Path,
+    thoroughness: usize,
+    paths_to_exclude: &Option<Vec<PathBuf>>,
+    verbose: bool,
+) -> u64 {
+    if !dir_path.is_dir() {
+        panic!("Not a directory! Quitting");
+    }
+    if verbose {
+        println!("Checking directory: {:?}", dir_path);
+    }
+
+    // Use ignore crate to recursively find all entries in
+    // parallel.
+    let mut entries: Vec<DirEntry> = find_entries(dir_path);
+
+    // Next, remove the paths we need to exclude, if there are
+    // any
+    if let Some(paths_to_exclude) = paths_to_exclude {
+        entries.retain(|entry| {
+            !paths_to_exclude
+                .iter()
+                // .map(|pb| pb.as_path())
+                .any(|p| p.as_path() == entry.path())
+        });
+    }
+
+    // Next, we need to sort the entries so that the hash is deteministic
+    //
     // Our choice here is whether to sort and iterate through ENTRIES or PATHS
     // Using entries gives us access to more data about each file, including metadat,
     // Using paths seems to be approximately 4% faster in a casual test.

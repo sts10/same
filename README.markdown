@@ -1,6 +1,6 @@
 # Same 
 
-Compare two or more directories to see if they're the same, with a set amount of thoroughness.
+Compare two or more directories to see if they're the same, with a set amount of thoroughness. Made with the idea of verifying the success of large transfer of files.
 
 ## Disclaimers
 
@@ -37,10 +37,12 @@ ARGS:
 
 When user sets `thoroughness` to...
 
-- 1, the program compares given directories by checking file names (not paths).
-- 2 by checking file _paths_ relative to inputted directories.
-- 3 by checking the sizes of all files, as well as file paths relative to inputted directories.
-- 4 by checking relative paths, file sizes, and hashes of every file in inputted directories, recursively. This takes a bit longer.
+- 1, the program compares given directories by checking **file names** (not paths).
+- 2 by checking file **paths** relative to inputted directories.
+- 3 by checking the **sizes** of all files, as well as file paths relative to inputted directories.
+- 4 by checking relative paths, file sizes, and **hashes of every file** in all of the inputted directories, recursively. 
+
+Generally a higher level of thoroughness will take more time to run, with `4` being the slowest.
 
 (Note for Rust developers: If you have an idea of how to use file modified times for a check, make an issue!)
 
@@ -56,7 +58,7 @@ I was preparing to restore a Rsync back-up of a large directory from an external
 
 ## Notes on status of the project
 
-As I write this, the code is this repo _may_ even be useful.
+As I write this, the code is this repo _may_ even be useful, but I wouldn't trust it to verify a transfer of large files (what it was made for) just yet.
 
 ### Alternative methods of checking if two directories are the same (not using this project)
 
